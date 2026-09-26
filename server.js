@@ -10,8 +10,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const session = require('express-session');
-const cookieParser = require('cookie-parser');
+const cookieSession = require('cookie-session');
 
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -159,21 +158,16 @@ function createApp() {
   ensureData();
   const app = express();
   app.set('trust proxy', 1);
-  app.use(cookieParser());
   app.use(express.urlencoded({ extended: false }));
   app.use(express.json());
   app.use(
-    session({
+    cookieSession({
       name: 'llvadlogin_crm_sid',
-      secret: SESSION_SECRET,
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production' || process.env.FORCE_SECURE_COOKIE === '1',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      },
+      keys: [SESSION_SECRET],
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production' || process.env.FORCE_SECURE_COOKIE === '1',
     })
   );
   app.use(express.static(path.join(__dirname, 'public')));
@@ -225,10 +219,9 @@ function createApp() {
   });
 
   app.post('/logout', (req, res) => {
-    req.session.destroy(() => {
-      res.clearCookie('llvadlogin_crm_sid');
-      res.redirect('/login');
-    });
+    req.session = null;
+    res.clearCookie('llvadlogin_crm_sid');
+    res.redirect('/login');
   });
 
   app.get('/', requireAuth, (req, res) => {
